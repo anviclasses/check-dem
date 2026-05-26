@@ -22,33 +22,6 @@
   QUIZ BLOCKS — paste per page/post where you want a quiz
 ══════════════════════════════════════════════════════════ -->
 
-<!-- ──────────────────────────────────────────────────────────
-  EXAM INTERFACE OPTION  (works in ALL three methods below)
-  ──────────────────────────────────────────────────────────
-  exam_interface: 'basic'         (default)
-      The lightweight in-page quiz interface.
-
-  exam_interface: 'professional'
-      A full-screen SSC-style Computer Based Test (CBT):
-        - Full-screen exam overlay with bilingual instructions
-        - Top bar with title + countdown timer
-        - Left question-palette panel (Not Visited / Not Answered /
-          Answered / Marked for Review counters, section tabs,
-          jump grid, Submit button)
-        - Bottom action bar (Mark for Review / Clear Response /
-          Save & Next, plus Check Answer in revision mode)
-        - localStorage session persistence
-        - Results screen with per-section score table
-
-  Extra settings used ONLY by the professional interface in
-  exam (non-revision) mode:
-        marks_per_question: 1     // marks awarded per correct answer
-        negative_marks:     0     // marks deducted per wrong answer
-
-  All other settings (title, timer, shuffle_*, quiz_questions,
-  topic_order, etc.) behave identically in both interfaces.
-──────────────────────────────────────────────────────────── -->
-
 
 <!-- ────────────────────────────────────────────────────────
   METHOD 1 — Inline JSON
@@ -70,9 +43,13 @@ document.addEventListener('DOMContentLoaded', function () {
     quiz_questions: 10,
     reload_after: 0,
 
-    exam_interface: 'professional',  // 'basic' (default) or 'professional'
-    marks_per_question: 1,           // professional exam mode only
-    negative_marks: 0                // professional exam mode only
+    // Exam interface: 'basic' (default lightweight in-page UI) or
+    // 'professional' (full SSC/CBT-style fullscreen exam — instruction
+    // start screen + declaration, colour-coded question palette,
+    // top/bottom action bars, marks + sectional breakdown on results).
+    exam_interface: 'basic',
+    marks_per_question: 1,   // marks per correct answer  (professional results)
+    negative_marks: 0        // marks deducted per wrong answer (professional results)
   });
 });
 </script>
@@ -105,9 +82,10 @@ document.addEventListener('DOMContentLoaded', function () {
       quiz_questions: 10,
       reload_after: 0,
 
-      exam_interface: 'professional',  // 'basic' (default) or 'professional'
-      marks_per_question: 1,           // professional exam mode only
-      negative_marks: 0                // professional exam mode only
+      // 'basic' or 'professional' — see Method 1 above for details.
+      exam_interface: 'basic',
+      marks_per_question: 1,
+      negative_marks: 0
     }
   });
 });
@@ -157,9 +135,10 @@ document.addEventListener('DOMContentLoaded', function () {
       quiz_questions: 30,
       reload_after: 0,
 
-      exam_interface: 'professional',  // 'basic' (default) or 'professional'
-      marks_per_question: 1,           // professional exam mode only
-      negative_marks: 0,               // professional exam mode only
+      // 'basic' or 'professional' — see Method 1 above for details.
+      exam_interface: 'basic',
+      marks_per_question: 1,
+      negative_marks: 0,
 
       // Force section order (must match topic names above exactly):
       topic_order: [
