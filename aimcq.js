@@ -2601,7 +2601,7 @@ window.initAimcqProExam = function(containerId, S, qs, pdata, fingerprint) {
           + '</div></div>';
 
         container.innerHTML =
-            '<div id="aimcq-pro-scope" data-pro-scope="' + examId + '">'
+            '<div id="aimcq-pro-scope">'
           + '<div class="aimcq-exam-wrapper" id="aimcq-exam-' + examId + '">'
           + startScreen + examContainer + modal
           + '</div></div>';
@@ -2795,26 +2795,6 @@ window.initAimcqProExam = function(containerId, S, qs, pdata, fingerprint) {
     };
 
     ExamRunner.prototype.startExam = function() {
-        // --- Portal the exam UI to <body> ---------------------------------
-        // A CSS `position:fixed` element is positioned relative to the nearest
-        // ancestor that has a `transform`, `filter`, `perspective`,
-        // `will-change` or `contain` property — NOT the viewport. Many
-        // Blogger/WordPress themes apply such properties to wrapper divs
-        // (animations, sticky headers, page transitions), which would break
-        // the fullscreen overlay (it would be clipped or mis-positioned).
-        // Moving the scoped wrapper to be a direct child of <body> guarantees
-        // the overlay always covers the true viewport, on every theme.
-        var scopeEl = this.examWrapper.parentNode;       // #aimcq-pro-scope
-        if (scopeEl && scopeEl.parentNode !== document.body) {
-            // Remember where it was so finishExam() can put it back, keeping
-            // the host page's DOM structure intact.
-            this._scopeHome = scopeEl.parentNode;
-            this._scopePlaceholder = document.createComment('aimcq-pro-scope-home');
-            this._scopeHome.insertBefore(this._scopePlaceholder, scopeEl);
-            document.body.appendChild(scopeEl);
-        }
-        this._scopeEl = scopeEl;
-
         document.body.classList.add('aimcq-fullscreen-active');
         this.examWrapper.classList.add('exam-active');
         this.startScreen.style.display = 'none';
@@ -2826,38 +2806,6 @@ window.initAimcqProExam = function(containerId, S, qs, pdata, fingerprint) {
         this.renderChemistry(this.examContainer);
         this.questionStates[this.currentIndex].visited = true;
         this.jumpToQuestion(this.currentIndex);
-    };
-
-    /* Return the portaled exam UI to its original place in the host DOM
-       and release the body scroll-lock. Safe to call when no portal was
-       performed (e.g. the scope was already a direct child of <body>). */
-    ExamRunner.prototype.restoreScopeHome = function() {
-        try {
-            if (this._scopeEl && this._scopePlaceholder && this._scopePlaceholder.parentNode) {
-                this._scopePlaceholder.parentNode.insertBefore(this._scopeEl, this._scopePlaceholder);
-                this._scopePlaceholder.parentNode.removeChild(this._scopePlaceholder);
-            }
-        } catch (e) { /* non-fatal: leave the node where it is */ }
-        this._scopePlaceholder = null;
-    };
-
-    /* Cleanly leave the fullscreen exam and hand control back to the host
-       website: release the body scroll-lock, drop the fullscreen overlay
-       class, return the exam UI to its original DOM position, and scroll
-       the page back to where the quiz sits. The host theme and its core
-       functionality are never touched. */
-    ExamRunner.prototype.exitExam = function() {
-        if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
-        document.body.classList.remove('aimcq-fullscreen-active');
-        this.examWrapper.classList.remove('exam-active');
-        this.restoreScopeHome();
-        // Bring the page viewport back to the quiz container.
-        try {
-            var anchor = this._scopeEl || this.examWrapper;
-            if (anchor && anchor.scrollIntoView) {
-                anchor.scrollIntoView({ behavior: 'auto', block: 'start' });
-            }
-        } catch (e) {}
     };
 
     ExamRunner.prototype.restoreDOMFromState = function() {
@@ -2912,15 +2860,6 @@ window.initAimcqProExam = function(containerId, S, qs, pdata, fingerprint) {
     ExamRunner.prototype.setupEventListeners = function() {
         var self = this;
         var bottomBar = this.examWrapper.querySelector('[data-role="bottom-actions"]');
-
-        // The results screen (incl. its "Back to Website" exit button) is
-        // rendered later by finishExam(), so use delegation here.
-        if (this.resultsDiv) {
-            this.resultsDiv.addEventListener('click', function(e) {
-                var exitBtn = e.target.closest('[data-action="exit-exam"]');
-                if (exitBtn) self.exitExam();
-            });
-        }
 
         function btn(action) {
             return self.examWrapper.querySelector('[data-action="' + action + '"]');
@@ -3366,10 +3305,7 @@ window.initAimcqProExam = function(containerId, S, qs, pdata, fingerprint) {
                 ? 'You have reviewed all <strong>' + this.totalQuestions + '</strong> questions.'
                 : 'You have reviewed only <strong>' + reviewedCount + '</strong> '
                   + (reviewedCount === 1 ? 'question' : 'questions') + '.';
-            this.resultsDiv.innerHTML = '<h3>Revision Completed!</h3><p>' + message + '</p>'
-              + '<div class="aimcq-results-actions">'
-              + '<button type="button" class="aimcq-exit-btn" data-action="exit-exam">Back to Website</button>'
-              + '</div>';
+            this.resultsDiv.innerHTML = '<h3>Revision Completed!</h3><p>' + message + '</p>';
             this.resultsDiv.className = 'aimcq-results pass';
         } else {
             var stats = this.examStats || { totalCorrect: 0, totalWrong: 0, totalAttempted: 0 };
@@ -3397,10 +3333,7 @@ window.initAimcqProExam = function(containerId, S, qs, pdata, fingerprint) {
               + '<tr class="highlight-row"><th>Obtained Marks</th><td style="color:var(--aimcq-primary);font-size:1.2rem;">' + fObt + '</td></tr>'
               + '<tr class="highlight-row" style="font-size:1.3rem;color:' + (percentage >= 50 ? 'var(--aimcq-success)' : 'var(--aimcq-danger)') + ';">'
               +   '<th>Percentage</th><td>' + fPct + '%</td></tr>'
-              + '</tbody></table>'
-              + '<div class="aimcq-results-actions">'
-              + '<button type="button" class="aimcq-exit-btn" data-action="exit-exam">Back to Website</button>'
-              + '</div>';
+              + '</tbody></table>';
             this.resultsDiv.className = 'aimcq-results ' + (percentage >= 50 ? 'pass' : 'fail');
         }
 
