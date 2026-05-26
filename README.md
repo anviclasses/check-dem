@@ -7,10 +7,37 @@ Host once on GitHub → serve anywhere via jsDelivr CDN.
 ```
 aimcq-engine/
 ├── aimcq.css          ← all styles (scoped to #aimcq-root-scope)
-├── aimcq.js           ← full engine (initAimcqQuiz + loadAimcqFromDrive)
+├── aimcq.js           ← full engine (initAimcqQuiz + loadAimcqFromDrive
+│                         + AIMCQ_PRO professional CBT interface)
 ├── embed-snippet.html ← ready-to-paste code for any website
 └── README.md
 ```
+
+## Exam interface — Basic vs Professional
+
+Every quiz can run in one of two interfaces, chosen with the
+`exam_interface` setting. It works identically across all three embed
+methods (inline JSON, single remote JSON, multi-file merged JSON).
+
+| `exam_interface`   | What you get |
+|--------------------|--------------|
+| `'basic'` *(default)* | The original lightweight in-page interface — start panel with Quiz/Revision buttons, inline question flow, slide-in nav drawer. |
+| `'professional'`   | A full SSC / CBT-style exam: fullscreen overlay, an instruction start screen with a declaration checkbox, a colour-coded question palette (Not Visited / Not Answered / Answered / Marked for Review), a top bar with countdown timer, and a bottom action bar (Save & Next, Mark for Review, Clear Response, Check Answer). Results show marks, negative marking and a sectional breakdown. |
+
+Just add `exam_interface: 'professional'` to the `settings` object of any
+method. Two extra settings tune the professional results screen:
+
+```js
+exam_interface: 'professional',
+marks_per_question: 2,    // marks per correct answer (default 1)
+negative_marks: 0.5       // marks deducted per wrong answer (default 0)
+```
+
+In professional mode the user still picks Quiz or Revision on the first
+screen; the CBT interface then shows its own instruction screen before
+the exam begins. The professional interface persists its progress in
+`localStorage`, so a page reload offers a **Resume Test** option.
+
 
 ## 1 — Push to GitHub & create a release tag
 
@@ -63,7 +90,8 @@ See `embed-snippet.html` for the full copy-paste block.
 document.addEventListener('DOMContentLoaded', function () {
   window.initAimcqQuiz('aimcq-quiz-1', /* quizDataJSON */, {
     title: "My Quiz", timer: 10,
-    shuffle_questions: true, shuffle_options: true, quiz_questions: 10
+    shuffle_questions: true, shuffle_options: true, quiz_questions: 10,
+    exam_interface: 'professional'   // 'basic' (default) or 'professional'
   });
 });
 </script>
@@ -76,7 +104,10 @@ document.addEventListener('DOMContentLoaded', function () {
 document.addEventListener('DOMContentLoaded', function () {
   window.loadAimcqFromDrive('aimcq-quiz-2', {
     jsonUrl: 'https://cdn.jsdelivr.net/gh/USER/REPO@TAG/path/quiz.json',
-    settings: { title: "My Quiz", timer: 10, shuffle_questions: true, quiz_questions: 10 }
+    settings: {
+      title: "My Quiz", timer: 10, shuffle_questions: true, quiz_questions: 10,
+      exam_interface: 'professional'
+    }
   });
 });
 </script>
@@ -95,7 +126,8 @@ document.addEventListener('DOMContentLoaded', function () {
     settings: {
       title: "My Multi-Chapter Quiz", timer: 20,
       shuffle_questions: true, shuffle_options: true, quiz_questions: 20,
-      topic_order: ['Chapter 1', 'Chapter 2']
+      topic_order: ['Chapter 1', 'Chapter 2'],
+      exam_interface: 'professional'
     }
   });
 });
@@ -103,60 +135,6 @@ document.addEventListener('DOMContentLoaded', function () {
 ```
 
 > See `embed-snippet.html` for Method 4 (Google Drive via Apps Script proxy).
-
-## Exam interface — basic vs professional
-
-Every method above accepts an `exam_interface` setting that selects which
-quiz UI is rendered. It works identically for Methods 1, 2 and 3.
-
-```js
-exam_interface: 'basic'         // default — lightweight in-page interface
-exam_interface: 'professional'  // full-screen SSC-style CBT exam interface
-```
-
-The **professional** interface is a full-screen Computer Based Test that
-mirrors real SSC/competitive-exam software:
-
-- Full-screen exam overlay with bilingual (EN/HI) instructions and an
-  "I agree" declaration screen
-- Top bar with quiz title and a live countdown timer
-- Left question-palette panel — Not Visited / Not Answered / Answered /
-  Marked for Review / Answered & Marked counters, per-topic section tabs,
-  a clickable jump grid, and a Submit button
-- Right question area with passage display, EN/HI language switcher,
-  lettered options and explanations
-- Bottom action bar — Mark for Review, Clear Response, Save & Next
-  (plus Check Answer in revision mode)
-- localStorage session persistence (resume after reload)
-- Results screen with a per-section score breakdown table
-
-Two extra settings apply **only** to the professional interface in exam
-(non-revision) mode:
-
-```js
-marks_per_question: 1   // marks awarded for each correct answer
-negative_marks:     0   // marks deducted for each wrong answer
-```
-
-All other settings (`title`, `timer`, `shuffle_questions`,
-`shuffle_options`, `quiz_questions`, `topic_order`, etc.) behave the same
-in both interfaces. If `exam_interface` is omitted, the basic interface is
-used, so existing embeds are unaffected.
-
-```html
-<div id="aimcq-quiz-pro"></div>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  window.initAimcqQuiz('aimcq-quiz-pro', /* quizDataJSON */, {
-    title: "SSC Mock Test", timer: 60,
-    shuffle_questions: true, shuffle_options: true, quiz_questions: 100,
-    exam_interface: 'professional',
-    marks_per_question: 2,
-    negative_marks: 0.5
-  });
-});
-</script>
-```
 
 ## Platforms confirmed compatible
 
