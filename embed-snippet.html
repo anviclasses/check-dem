@@ -1,0 +1,152 @@
+<!-- ================================================================
+  AI MCQs Engine — Universal Embed Snippet
+  ----------------------------------------------------------------
+  1. Paste the HEAD BLOCK once per site (in <head> or before </body>)
+  2. Then drop a QUIZ BLOCK anywhere you want a quiz to appear.
+  Replace YOUR-USER, YOUR-REPO, and VERSION with your GitHub details.
+================================================================ -->
+
+
+<!-- ══════════════════════════════════════════════════════════
+  HEAD BLOCK — paste ONCE per site
+══════════════════════════════════════════════════════════ -->
+<link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
+<link  rel="stylesheet" href="https://cdn.jsdelivr.net/gh/YOUR-USER/aimcq-engine@VERSION/aimcq.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"></script>
+<script defer src="https://unpkg.com/smiles-drawer@2.0.1/dist/smiles-drawer.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/YOUR-USER/aimcq-engine@VERSION/aimcq.js"></script>
+
+
+<!-- ══════════════════════════════════════════════════════════
+  QUIZ BLOCKS — paste per page/post where you want a quiz
+══════════════════════════════════════════════════════════ -->
+
+
+<!-- ────────────────────────────────────────────────────────
+  METHOD 1 — Inline JSON
+  Best for: small quizzes fully self-contained in the page.
+  How: paste your exported quiz JSON directly into quizData.
+──────────────────────────────────────────────────────────── -->
+<div id="aimcq-quiz-1"></div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  var quizData = { /* paste your exported quiz JSON here */ };
+
+  window.initAimcqQuiz('aimcq-quiz-1', quizData, {
+    title: "My Quiz Title",
+    description: "Short description shown on the start screen",
+    timer: 10,               // minutes; 0 = no timer
+    shuffle_questions: true,
+    shuffle_options: true,
+    quiz_questions: 10,
+    reload_after: 0,
+
+    // Exam interface: 'basic' (default lightweight in-page UI) or
+    // 'professional' (full SSC/CBT-style fullscreen exam — instruction
+    // start screen + declaration, colour-coded question palette,
+    // top/bottom action bars, marks + sectional breakdown on results).
+    exam_interface: 'basic',
+    marks_per_question: 1,   // marks per correct answer  (professional results)
+    negative_marks: 0        // marks deducted per wrong answer (professional results)
+  });
+});
+</script>
+
+
+<!-- ────────────────────────────────────────────────────────
+  METHOD 2 — Single JSON file from a public URL
+  Best for: one chapter / one topic hosted on GitHub + jsDelivr.
+
+  jsDelivr URL pattern:
+    https://cdn.jsdelivr.net/gh/USER/REPO@TAG/path/to/file.json
+
+  Works with any public URL — jsDelivr, raw.githubusercontent.com,
+  your own server, Cloudflare R2, S3, etc.
+──────────────────────────────────────────────────────────── -->
+<div id="aimcq-quiz-2"></div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  window.loadAimcqFromDrive('aimcq-quiz-2', {
+
+    jsonUrl: 'https://cdn.jsdelivr.net/gh/YOUR-USER/YOUR-REPO@TAG/path/to/quiz.json',
+
+    settings: {
+      title: "My Quiz Title",
+      description: "Short description shown on the start screen",
+      timer: 10,
+      shuffle_questions: true,
+      shuffle_options: true,
+      quiz_questions: 10,
+      reload_after: 0,
+
+      // 'basic' or 'professional' — see Method 1 above for details.
+      exam_interface: 'basic',
+      marks_per_question: 1,
+      negative_marks: 0
+    }
+  });
+});
+</script>
+
+
+<!-- ────────────────────────────────────────────────────────
+  METHOD 3 — Multiple JSON files merged into one quiz
+  Best for: multi-chapter / multi-subject tests where each
+  chapter is a separate JSON file on GitHub / CDN.
+
+  Each entry in jsonUrls carries a `topic` string that powers:
+    - Horizontal scrollable topic-filter tabs
+    - Section headings inside the quiz
+    - Per-topic score breakdown on the results screen
+
+  topic_order forces sections into your preferred sequence
+  regardless of the order URLs are listed.
+──────────────────────────────────────────────────────────── -->
+<div id="aimcq-quiz-3"></div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  window.loadAimcqFromDrive('aimcq-quiz-3', {
+
+    jsonUrls: [
+      {
+        jsonUrl: 'https://cdn.jsdelivr.net/gh/YOUR-USER/YOUR-REPO@TAG/path/ch1.json',
+        topic:   'Chapter 1 Title'
+      },
+      {
+        jsonUrl: 'https://cdn.jsdelivr.net/gh/YOUR-USER/YOUR-REPO@TAG/path/ch2.json',
+        topic:   'Chapter 2 Title'
+      },
+      {
+        jsonUrl: 'https://cdn.jsdelivr.net/gh/YOUR-USER/YOUR-REPO@TAG/path/ch3.json',
+        topic:   'Chapter 3 Title'
+      }
+    ],
+
+    settings: {
+      title: "My Multi-Chapter Quiz",
+      description: "3 chapters combined MCQ test",
+      timer: 30,
+      shuffle_questions: true,
+      shuffle_options: true,
+      quiz_questions: 30,
+      reload_after: 0,
+
+      // 'basic' or 'professional' — see Method 1 above for details.
+      exam_interface: 'basic',
+      marks_per_question: 1,
+      negative_marks: 0,
+
+      // Force section order (must match topic names above exactly):
+      topic_order: [
+        'Chapter 1 Title',
+        'Chapter 2 Title',
+        'Chapter 3 Title'
+      ]
+    }
+  });
+});
+</script>
