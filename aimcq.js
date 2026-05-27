@@ -2607,21 +2607,68 @@ window.AIMCQ_PRO = (function () {
     /* ---- start / resume the exam ---- */
     ProExamRunner.prototype.startExam = function () {
         var self = this;
-        /* ---- Blogger / themed-template fullscreen fix ----
-         * Blogger (and many CMS themes) apply CSS transforms, filters, or
-         * will-change on ancestor elements (.post-body, column wrappers, etc.).
-         * Any such property creates a new containing block, breaking
-         * position:fixed — the overlay attaches to that ancestor instead of
-         * the viewport.  Fix: physically move the wrapper to <body> before
-         * activating fullscreen, then restore it when the exam finishes.
-         * -------------------------------------------------- */
-        this._examOriginalParent      = this.root.parentNode;
-        this._examOriginalNextSibling = this.root.nextSibling;
-        document.body.appendChild(this.root);
 
+        /* ----------------------------------------------------------
+           BLOGGER / template compatibility fix.
+
+           Many host templates (Blogger sticky-header themes especially,
+           but also some WordPress themes) wrap post content in an
+           element that has `transform`, `filter`, `perspective`,
+           `will-change` or `contain` on it. Per the CSS spec, ANY such
+           ancestor becomes the containing block for any descendant
+           `position: fixed` element — which means our fullscreen exam
+           overlay would be trapped inside the post body, sized to the
+           post column, scrolling with the page, and covered by the
+           template's sticky navbar.
+
+           To dodge this entirely, we detach the #aimcq-root-scope
+           wrapper from wherever the template put it and re-attach it
+           as a direct child of <body>. Now there is no transformed
+           ancestor — the fixed positioning behaves exactly like real
+           fullscreen, regardless of how the host template is built.
+
+           We remember the original parent + sibling so finishExam (or
+           a future "exit" action) can put it back. We also save the
+           current scroll position; locking <html> overflow on some
+           browsers resets scroll to 0, and we want to restore the
+           user's view if/when they leave the exam.
+           ---------------------------------------------------------- */
+        var scope = this.root.parentNode;   /* the #aimcq-root-scope div */
+        if (scope && scope.parentNode !== document.body) {
+            this._originalParent = scope.parentNode;
+            this._originalNextSibling = scope.nextSibling;
+            this._scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+            document.body.appendChild(scope);
+            scope.classList.add('aimcq-cbt-relocated');
+        }
+
+        document.documentElement.classList.add('aimcq-cbt-fullscreen');
         document.body.classList.add('aimcq-cbt-fullscreen');
         this.root.classList.add('exam-active');
         this.startScreen.style.display = 'none';
+
+        /* Best-effort: ask the browser for actual fullscreen. This
+           covers cases where a Blogger sticky bar uses an even higher
+           z-index than ours, or where the template injects content
+           outside <body>. Wrapped in try/catch because some browsers
+           refuse the request silently (e.g. cross-origin iframes
+           without `allowfullscreen`, or non-user-gesture invocation).
+           The click on "I am ready to begin" IS a user gesture, so it
+           normally succeeds. We pick the top-level element so the
+           whole exam UI goes native-fullscreen, not just one child. */
+        try {
+            var fsTarget = scope || this.root;
+            var req = fsTarget.requestFullscreen
+                   || fsTarget.webkitRequestFullscreen
+                   || fsTarget.mozRequestFullScreen
+                   || fsTarget.msRequestFullscreen;
+            if (req && !document.fullscreenElement
+                    && !document.webkitFullscreenElement
+                    && !document.mozFullScreenElement) {
+                var p = req.call(fsTarget);
+                if (p && p.catch) p.catch(function () { /* ignore */ });
+            }
+        } catch (e) { /* ignore — overlay still works without native FS */ }
 
         if (this.S.shuffle_options && !this.hasSaved) this.shuffleOptions();
         if (this.hasSaved) this.restoreDOM();
@@ -3184,20 +3231,6 @@ window.AIMCQ_PRO = (function () {
                 + '<tr class="cbt-highlight-row" style="font-size:1.3rem;color:' + pctColor + ';"><th>Percentage</th><td>' + fPct + '%</td></tr>'
                 + '</tbody></table>' + breakdown;
             this.resultsEl.className = 'cbt-results ' + (pct >= 50 ? 'pass' : 'fail');
-        }
-
-        /* ---- Blogger fullscreen fix: exit fullscreen + restore DOM position ---- */
-        document.body.classList.remove('aimcq-cbt-fullscreen');
-        this.root.classList.remove('exam-active');
-        /* Move wrapper back to its original location in the post */
-        if (this._examOriginalParent) {
-            if (this._examOriginalNextSibling) {
-                this._examOriginalParent.insertBefore(this.root, this._examOriginalNextSibling);
-            } else {
-                this._examOriginalParent.appendChild(this.root);
-            }
-            this._examOriginalParent      = null;
-            this._examOriginalNextSibling = null;
         }
 
         this.resultsEl.style.display = 'block';
