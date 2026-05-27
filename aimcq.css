@@ -964,6 +964,9 @@
     --cbt-green-hover: #4cae4c;
 }
 
+/* Body scroll lock — ONLY while the CBT exam is active.
+   The class is added by startExam() and removed by finishExam()
+   via _deactivateFullscreen(), so it never leaks onto the host page. */
 body.aimcq-cbt-fullscreen { overflow: hidden !important; }
 
 #aimcq-root-scope .cbt-exam-wrapper {
@@ -982,6 +985,24 @@ body.aimcq-cbt-fullscreen { overflow: hidden !important; }
     display: flex; flex-direction: column; overflow: hidden;
     touch-action: none;
     -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+}
+
+/* ---- Post-exam: wrapper returns to normal document flow.
+   Without this, themes with stacking-context rules (sticky headers,
+   transform on ancestors, etc.) could still clip the results screen. ---- */
+#aimcq-root-scope .cbt-exam-wrapper:not(.exam-active) {
+    position: relative !important;
+    top: auto !important; left: auto !important;
+    right: auto !important; bottom: auto !important;
+    width: auto !important; height: auto !important;
+    max-width: 1100px !important;
+    overflow: visible !important;
+    touch-action: auto !important;
+    -webkit-user-select: auto !important;
+    -moz-user-select: auto !important;
+    -ms-user-select: auto !important;
+    user-select: auto !important;
+    z-index: auto !important;
 }
 
 /* ----------------------------------------------------------------
@@ -1457,4 +1478,41 @@ body.aimcq-cbt-fullscreen { overflow: hidden !important; }
         grid-template-columns: 1fr 0.5fr; grid-row-gap: 4px;
     }
     #aimcq-root-scope .cbt-breakdown-bar { grid-column: 1 / -1; }
+}
+
+/* ================================================================
+   HOST-PAGE CONFLICT GUARDS
+   Blogger / WordPress themes often set overflow:hidden on wrapper
+   divs or apply CSS transforms that break position:fixed children.
+   These rules ensure the exam overlay is never clipped by ancestor
+   containers while the exam is active.
+   ================================================================ */
+
+/* Blogger: #outer-wrapper, #main-wrapper, .widget, etc. often carry
+   overflow:hidden. We cannot selector-target every theme's elements,
+   but we CAN ensure our fixed overlay is a direct child of <body>
+   by the JS portalling strategy (already in place for .cbt-modal-overlay).
+   The rule below protects the modal overlay, which IS portalled. */
+
+/* Prevent Blogger / WP sticky-header z-index from covering the exam */
+body.aimcq-cbt-fullscreen #header,
+body.aimcq-cbt-fullscreen .site-header,
+body.aimcq-cbt-fullscreen #masthead,
+body.aimcq-cbt-fullscreen .navbar,
+body.aimcq-cbt-fullscreen .nav-bar,
+body.aimcq-cbt-fullscreen [id*="header"],
+body.aimcq-cbt-fullscreen [class*="header"] {
+    z-index: 1 !important;
+}
+
+/* Prevent WP Twenty-* / Genesis / Divi / Astra admin bar from
+   pushing the fixed overlay down */
+body.aimcq-cbt-fullscreen #wpadminbar {
+    z-index: 99998 !important; /* just below our 999999 */
+}
+
+/* Blogger body padding / margin resets while exam is active */
+body.aimcq-cbt-fullscreen {
+    padding: 0 !important;
+    margin: 0 !important;
 }
