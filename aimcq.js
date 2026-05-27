@@ -3068,6 +3068,31 @@ window.AIMCQ_PRO = (function () {
         set('cbt-count-answered-' + this.cid, c.an);
         set('cbt-count-review-' + this.cid, c.rv);
         set('cbt-count-answered-review-' + this.cid, c.ar);
+
+        /* Keep the current question button visible inside the (now
+           independently scrollable) question-number grid. Without
+           this, navigating with Save & Next can leave the highlighted
+           button below the visible portion of the grid in long
+           quizzes. We only scroll the grid container — not the page —
+           by using `block: 'nearest'`, which is a no-op when the
+           button is already in view. */
+        var curBtn = this.navBtns[this.cur];
+        if (curBtn) {
+            try {
+                curBtn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            } catch (e) {
+                /* Older browsers without options-object support: manual fallback. */
+                var grid = curBtn.parentNode;
+                if (grid && grid.scrollTop != null) {
+                    var bTop = curBtn.offsetTop - grid.offsetTop;
+                    var bBot = bTop + curBtn.offsetHeight;
+                    if (bTop < grid.scrollTop) grid.scrollTop = bTop;
+                    else if (bBot > grid.scrollTop + grid.clientHeight) {
+                        grid.scrollTop = bBot - grid.clientHeight;
+                    }
+                }
+            }
+        }
     };
 
     /* ---- evaluate one question (mark correct / incorrect / missed) ---- */
