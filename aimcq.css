@@ -1009,9 +1009,14 @@ body.aimcq-cbt-fullscreen > *:not(#aimcq-root-scope):not(script):not(style):not(
     position: fixed;
     inset: 0;                       /* shorthand for top/right/bottom/left: 0 */
     top: 0; left: 0; right: 0; bottom: 0;   /* fallback for older browsers */
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;                 /* dynamic viewport (mobile address bar) */
+    /* NOTE: do NOT set width/height here. `position: fixed` + `inset: 0`
+       already stretches the element to fill the *visible* viewport on
+       every browser. Adding `height: 100vh` here breaks mobile because
+       100vh is the LARGEST viewport (URL bar hidden) — so the element
+       grows taller than the screen and the bottom action bar (Save &
+       Next, Check Answer, etc.) gets pushed below the visible area.
+       Letting top:0 / bottom:0 do the work auto-adjusts as the mobile
+       URL bar shows or hides. */
     z-index: 2147483600;            /* max int-ish; above any Blogger sticky bar */
     background: #fff;
     margin: 0;
@@ -1030,6 +1035,17 @@ body.aimcq-cbt-fullscreen > *:not(#aimcq-root-scope):not(script):not(style):not(
     perspective: none !important;
     will-change: auto !important;
     contain: none !important;
+}
+
+/* Flex-child min-size discipline: by default a flex item has
+   `min-height: auto`, which means it refuses to shrink below its
+   content's intrinsic height. On short mobile viewports that lets
+   the middle question area push the bottom bar off-screen. Setting
+   `min-height: 0` on the scrollable middle restores normal flex
+   shrinking so the bottom bar always stays visible. */
+#aimcq-root-scope .cbt-exam-wrapper.exam-active .cbt-exam-layout,
+#aimcq-root-scope .cbt-exam-wrapper.exam-active .cbt-main-content {
+    min-height: 0;
 }
 
 /* When the overlay has been moved to <body>, the wrapping
