@@ -2604,50 +2604,23 @@ window.AIMCQ_PRO = (function () {
         this.root.classList.toggle('nav-panel-open', open);
     };
 
-    /* ---- helpers: activate / deactivate the fullscreen body lock ---- */
-    ProExamRunner.prototype._activateFullscreen = function () {
-        // Save the page scroll position so we can restore it on exit.
-        this._savedScrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
-        document.body.classList.add('aimcq-cbt-fullscreen');
-        this.root.classList.add('exam-active');
-
-        // Guard: if the user navigates away (back button, hash change, etc.)
-        // while the exam is open, release the body lock so the host page is
-        // not permanently broken.
-        var self = this;
-        this._fsPopstateHandler = function () { self._deactivateFullscreen(); };
-        this._fsVisibilityHandler = function () {
-            if (document.visibilityState === 'hidden') { self._deactivateFullscreen(); }
-        };
-        window.addEventListener('popstate', this._fsPopstateHandler);
-        document.addEventListener('visibilitychange', this._fsVisibilityHandler);
-    };
-
-    ProExamRunner.prototype._deactivateFullscreen = function () {
-        document.body.classList.remove('aimcq-cbt-fullscreen');
-        this.root.classList.remove('exam-active');
-
-        // Restore page scroll position.
-        if (this._savedScrollY != null) {
-            try { window.scrollTo(0, this._savedScrollY); } catch (e) {}
-            this._savedScrollY = null;
-        }
-
-        // Remove navigation / visibility guards.
-        if (this._fsPopstateHandler) {
-            window.removeEventListener('popstate', this._fsPopstateHandler);
-            this._fsPopstateHandler = null;
-        }
-        if (this._fsVisibilityHandler) {
-            document.removeEventListener('visibilitychange', this._fsVisibilityHandler);
-            this._fsVisibilityHandler = null;
-        }
-    };
-
     /* ---- start / resume the exam ---- */
     ProExamRunner.prototype.startExam = function () {
         var self = this;
-        this._activateFullscreen();
+        /* ---- Blogger / themed-template fullscreen fix ----
+         * Blogger (and many CMS themes) apply CSS transforms, filters, or
+         * will-change on ancestor elements (.post-body, column wrappers, etc.).
+         * Any such property creates a new containing block, breaking
+         * position:fixed — the overlay attaches to that ancestor instead of
+         * the viewport.  Fix: physically move the wrapper to <body> before
+         * activating fullscreen, then restore it when the exam finishes.
+         * -------------------------------------------------- */
+        this._examOriginalParent      = this.root.parentNode;
+        this._examOriginalNextSibling = this.root.nextSibling;
+        document.body.appendChild(this.root);
+
+        document.body.classList.add('aimcq-cbt-fullscreen');
+        this.root.classList.add('exam-active');
         this.startScreen.style.display = 'none';
 
         if (this.S.shuffle_options && !this.hasSaved) this.shuffleOptions();
@@ -3101,20 +3074,9 @@ window.AIMCQ_PRO = (function () {
         if (window.innerWidth < 992) this.toggleNav(false);
         this.form.dataset.finished = 'true';
 
-        /* --- EXIT FULLSCREEN: release body overflow lock, restore page
-               scroll position, remove page-unload guards, and un-hide any
-               sibling quiz containers that were hidden at exam start.      --- */
-        this._deactivateFullscreen();
-        _aimcqShowAllContainers();
-
-        /* Remove the portal nav-toggle button that was appended to document.body */
-        if (this.navToggle && this.navToggle.parentNode) {
-            this.navToggle.parentNode.removeChild(this.navToggle);
-            this.navToggle = null;
-        }
-
+        if (this.navToggle) this.navToggle.style.display = 'none';
         if (this.bottomBar) this.bottomBar.style.display = 'none';
-        var submitNav = this.navPanel ? this.navPanel.querySelector('[data-cbt-action="submit"]') : null;
+        var submitNav = this.navPanel.querySelector('[data-cbt-action="submit"]');
         if (submitNav) submitNav.style.display = 'none';
 
         var marks = (this.S.marks_per_question != null) ? Number(this.S.marks_per_question) : 1;
@@ -3222,6 +3184,20 @@ window.AIMCQ_PRO = (function () {
                 + '<tr class="cbt-highlight-row" style="font-size:1.3rem;color:' + pctColor + ';"><th>Percentage</th><td>' + fPct + '%</td></tr>'
                 + '</tbody></table>' + breakdown;
             this.resultsEl.className = 'cbt-results ' + (pct >= 50 ? 'pass' : 'fail');
+        }
+
+        /* ---- Blogger fullscreen fix: exit fullscreen + restore DOM position ---- */
+        document.body.classList.remove('aimcq-cbt-fullscreen');
+        this.root.classList.remove('exam-active');
+        /* Move wrapper back to its original location in the post */
+        if (this._examOriginalParent) {
+            if (this._examOriginalNextSibling) {
+                this._examOriginalParent.insertBefore(this.root, this._examOriginalNextSibling);
+            } else {
+                this._examOriginalParent.appendChild(this.root);
+            }
+            this._examOriginalParent      = null;
+            this._examOriginalNextSibling = null;
         }
 
         this.resultsEl.style.display = 'block';
