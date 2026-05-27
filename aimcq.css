@@ -1189,11 +1189,19 @@ body > #aimcq-root-scope.aimcq-cbt-relocated {
     flex-direction: row !important; touch-action: none;
 }
 
-/* ---- Left nav palette ---- */
+/* ---- Left nav palette ----
+   The panel is a fixed-layout flex column. Legend, section tabs,
+   heading, and the Submit button are pinned (flex-shrink: 0). ONLY
+   the question-number grid in the middle scrolls — so users can
+   always see the legend at top and the Submit button at bottom
+   even when there are many questions. */
 #aimcq-root-scope .cbt-nav-panel {
-    width: 320px; background: #e2f4ff; overflow-y: auto; flex-shrink: 0;
+    width: 320px; background: #e2f4ff; flex-shrink: 0;
     display: flex; flex-direction: column; padding: 15px;
-    position: static; max-height: none; touch-action: auto; -webkit-overflow-scrolling: touch;
+    position: static; max-height: none;
+    /* Panel itself no longer scrolls — only its question grid does. */
+    overflow: hidden;
+    touch-action: auto;
 }
 
 /* ---- Right questions area ---- */
@@ -1273,8 +1281,31 @@ body > #aimcq-root-scope.aimcq-cbt-relocated {
 #aimcq-root-scope .cbt-nav-panel h4 { margin: 0 0 8px 0; font-size: 0.95rem; color: #333; flex-shrink: 0; }
 #aimcq-root-scope .cbt-nav-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
-    gap: 8px; margin-bottom: 20px;
+    gap: 8px;
+    /* ONLY this section scrolls — the question-number buttons. The
+       legend, section tabs, "Questions" heading, and Submit button
+       above and below stay pinned in place. flex: 1 takes all
+       remaining height in the nav panel; min-height: 0 lets the
+       grid actually shrink inside the flex column (otherwise
+       min-content prevents shrinking); padding-right leaves room
+       for the scrollbar so buttons don't get clipped. */
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    align-content: start;
+    padding-right: 6px;
+    margin-bottom: 15px;
+    touch-action: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 transparent;
 }
+#aimcq-root-scope .cbt-nav-grid::-webkit-scrollbar { width: 6px; }
+#aimcq-root-scope .cbt-nav-grid::-webkit-scrollbar-track { background: transparent; }
+#aimcq-root-scope .cbt-nav-grid::-webkit-scrollbar-thumb {
+    background: #94a3b8; border-radius: 3px;
+}
+#aimcq-root-scope .cbt-nav-grid::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
 /* ---- Palette buttons ---- */
 #aimcq-root-scope .cbt-q-btn {
@@ -1488,7 +1519,11 @@ body > #aimcq-root-scope.aimcq-cbt-relocated {
         width: 300px !important; height: 100% !important; z-index: 10001;
         border-radius: 0; box-shadow: 0 0 20px rgba(0,0,0,0.2);
         transition: left 0.35s cubic-bezier(0.25,0.8,0.25,1);
-        overflow-y: auto; max-height: 100% !important;
+        /* Keep the panel itself non-scrolling on mobile too — only the
+           question-number grid scrolls (rule above). The drawer is
+           already height: 100% of the visible viewport. */
+        overflow: hidden;
+        max-height: 100% !important;
     }
     #aimcq-root-scope .cbt-exam-wrapper.nav-panel-open .cbt-nav-panel { left: 0 !important; }
     #aimcq-root-scope .cbt-exam-wrapper.nav-panel-open .cbt-nav-overlay { display: block; opacity: 1; }
