@@ -964,7 +964,37 @@
     --cbt-green-hover: #4cae4c;
 }
 
-body.aimcq-cbt-fullscreen { overflow: hidden !important; }
+/* ----------------------------------------------------------------
+   FULLSCREEN MODE — Blogger/WordPress template compatibility
+   ----------------------------------------------------------------
+   Many host templates (Blogger especially) put `transform`, `filter`,
+   `perspective`, `will-change` or `contain` on a wrapping element.
+   Per the CSS spec, that turns the wrapper into the containing block
+   for any descendant `position: fixed`, which traps our overlay
+   inside the post body. The JS now relocates the overlay to be a
+   direct child of <body> when the exam starts, and these rules make
+   sure scroll is locked on BOTH html and body and that the overlay
+   sits above any sticky template header.
+   ---------------------------------------------------------------- */
+html.aimcq-cbt-fullscreen,
+body.aimcq-cbt-fullscreen {
+    overflow: hidden !important;
+    height: 100% !important;
+    /* Prevent iOS rubber-band scroll bleeding through */
+    overscroll-behavior: none !important;
+    /* Block touch-scroll on the page behind the overlay */
+    touch-action: none !important;
+}
+
+/* When the overlay has been relocated to <body>, hide any sibling
+   Blogger sticky headers / floating widgets by suppressing pointer
+   events on them. We use an attribute on body the JS sets. */
+body.aimcq-cbt-fullscreen > *:not(#aimcq-root-scope):not(script):not(style):not(noscript) {
+    /* Don't unmount the template — just keep it from intercepting
+       clicks or bleeding visually above the overlay. The overlay's
+       solid background covers them. */
+    pointer-events: none !important;
+}
 
 #aimcq-root-scope .cbt-exam-wrapper {
     font-family: var(--aq-font);
@@ -975,42 +1005,40 @@ body.aimcq-cbt-fullscreen { overflow: hidden !important; }
 }
 
 /* ---- Fullscreen overlay while the exam is active ---- */
-/*
- * Blogger-template conflict fix (also applies to any CMS with transformed
- * ancestor elements): the wrapper is moved to <body> by JS before this class
- * is added, so position:fixed is always relative to the true viewport.
- * The contain + isolation rules below prevent any Blogger widget, sidebar,
- * or header from leaking stacking-context z-index into the exam layer.
- */
 #aimcq-root-scope .cbt-exam-wrapper.exam-active {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    width: 100%; height: 100dvh;
-    z-index: 999999; background: #fff; margin: 0; max-width: none; border-radius: 0;
-    display: flex; flex-direction: column; overflow: hidden;
+    position: fixed;
+    inset: 0;                       /* shorthand for top/right/bottom/left: 0 */
+    top: 0; left: 0; right: 0; bottom: 0;   /* fallback for older browsers */
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;                 /* dynamic viewport (mobile address bar) */
+    z-index: 2147483600;            /* max int-ish; above any Blogger sticky bar */
+    background: #fff;
+    margin: 0;
+    max-width: none;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     touch-action: none;
     -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
-    /* Prevent Blogger's own transforms/filters from interfering */
-    isolation: isolate;
-    contain: layout style;
-    /* Ensure nothing from the host page shows through */
+    /* Block any ancestor transform/filter from re-trapping us — these
+       create a containing block for fixed children. Since we've moved
+       to <body>, there should be no such ancestor, but belt-and-braces. */
     transform: none !important;
     filter: none !important;
+    perspective: none !important;
     will-change: auto !important;
+    contain: none !important;
 }
 
-/* While exam is active, suppress Blogger's sticky header / navbar so they
-   don't appear on top of the fullscreen exam layer */
-body.aimcq-cbt-fullscreen #header,
-body.aimcq-cbt-fullscreen .navbar,
-body.aimcq-cbt-fullscreen #navbar,
-body.aimcq-cbt-fullscreen .Header,
-body.aimcq-cbt-fullscreen #PageList1,
-body.aimcq-cbt-fullscreen .blog-pager,
-body.aimcq-cbt-fullscreen .widget,
-body.aimcq-cbt-fullscreen #sidebar-wrapper,
-body.aimcq-cbt-fullscreen #footer-wrapper {
-    z-index: 0 !important;
-    position: static !important;
+/* When the overlay has been moved to <body>, the wrapping
+   #aimcq-root-scope element needs to participate in fullscreen too. */
+body > #aimcq-root-scope.aimcq-cbt-relocated {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483600;
+    pointer-events: auto;
 }
 
 /* ----------------------------------------------------------------
@@ -1410,7 +1438,7 @@ body.aimcq-cbt-fullscreen #footer-wrapper {
 #aimcq-root-scope .cbt-modal-overlay {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center;
-    z-index: 1000000; animation: cbtFadeIn 0.3s; touch-action: none;
+    z-index: 2147483601; animation: cbtFadeIn 0.3s; touch-action: none;
 }
 #aimcq-root-scope .cbt-modal-dialog {
     background: var(--aq-white); padding: 2rem; border-radius: 8px; text-align: center;
@@ -1430,6 +1458,7 @@ body.aimcq-cbt-fullscreen #footer-wrapper {
 /* ---- Print protection ---- */
 @media print {
     #aimcq-root-scope .cbt-exam-wrapper,
+    html.aimcq-cbt-fullscreen,
     body.aimcq-cbt-fullscreen { display: none !important; }
 }
 
