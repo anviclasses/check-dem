@@ -275,16 +275,25 @@ window.initAimcqQuiz = function(containerId, rawJSONData, customSettings) {
         var hasMultipleTopics = topicOrderLocal.length > 1;
 
         // ---- Topic tabs (shown only when there are >= 2 topics) ----
-        // Rendered inside the nav panel, below the heading. Clicking a tab
-        // filters the nav grid to show ONLY that topic's question buttons.
-        // The first topic is active by default — there is no "All" view; the
-        // sidebar always shows exactly one topic's questions at a time.
+        //
+        // Mirror the CBT (Pro) interface exactly:
+        //
+        //   • A leading "All" tab is prepended and is active by default,
+        //     so the user sees every question button on load.
+        //   • Selecting a specific section tab filters the SAME flat grid
+        //     (just toggles display on each button), it does NOT jump to
+        //     a question (jumpTo only happens on actual question clicks).
+        //   • When the user navigates to a question whose section ≠ active
+        //     filter AND active filter ≠ "all", jumpTo() auto-clicks the
+        //     matching section tab so the grid stays in sync.
+        //
+        // Tabs are still rendered inside the nav-panel sidebar.
         var topicTabsHTML = '';
         if (hasMultipleTopics) {
-            var tabs = '';
-            topicOrderLocal.forEach(function(slug, ti) {
+            var tabs = '<button type="button" class="aq-topic-tab active" data-topic-slug="all">All <span class="aq-topic-count">' + qs.length + '</span></button>';
+            topicOrderLocal.forEach(function(slug) {
                 var t = topicBySlug[slug];
-                tabs += '<button type="button" class="aq-topic-tab' + (ti === 0 ? ' active' : '') + '" data-topic-slug="' + slug + '">'
+                tabs += '<button type="button" class="aq-topic-tab" data-topic-slug="' + slug + '">'
                     + escapeAttr(t.name)
                     + ' <span class="aq-topic-count">' + t.indices.length + '</span>'
                     + '</button>';
@@ -292,33 +301,23 @@ window.initAimcqQuiz = function(containerId, rawJSONData, customSettings) {
             topicTabsHTML = '<div class="aq-topic-tabs" role="tablist" aria-label="Filter by topic">' + tabs + '</div>';
         }
 
-        // ---- Nav panel: heading + topic tabs + grouped question buttons ----
-        // With the "All" view removed, only the FIRST topic's group is visible
-        // initially; the rest start with `aq-hidden`. Switching tabs flips
-        // which group is visible — `filterByTopic()` does the toggling.
+        // ---- Nav panel: heading + topic tabs + flat question grid ----
+        //
+        // Always a single flat `.aq-nav-grid`, regardless of whether the
+        // quiz has one or many topics. Each button carries data-topic-slug
+        // so filterByTopic() can show/hide via `display` (mirrors the CBT
+        // engine's `data-section` mechanism). No topic-group wrappers, no
+        // per-group labels — the active section tab IS the label.
         var navPanelHTML = '';
         if (isSingle) {
-            var navGroupsHTML = '';
-            if (hasMultipleTopics) {
-                topicOrderLocal.forEach(function(slug, ti) {
-                    var t = topicBySlug[slug];
-                    var btns = t.indices.map(function(qi) {
-                        return '<button type="button" class="aq-q-btn" data-qi="' + qi + '" data-topic-slug="' + slug + '">' + (qi+1) + '</button>';
-                    }).join('');
-                    navGroupsHTML +=
-                        '<div class="aq-nav-topic-group' + (ti === 0 ? '' : ' aq-hidden') + '" data-topic-slug="' + slug + '">'
-                        + '<div class="aq-nav-topic-label">' + escapeAttr(t.name) + ' <span style="opacity:.7;font-weight:500;">(' + t.indices.length + ')</span></div>'
-                        + '<div class="aq-nav-grid">' + btns + '</div>'
-                        + '</div>';
-                });
-            } else {
-                // Single-topic quiz: flat grid, no group labels (keeps legacy look).
-                var btns = qs.map(function(_, i) {
-                    return '<button type="button" class="aq-q-btn" data-qi="' + i + '">' + (i+1) + '</button>';
-                }).join('');
-                navGroupsHTML = '<div class="aq-nav-grid">' + btns + '</div>';
-            }
-            navPanelHTML = '<div class="aq-nav-panel"><h4>Question Navigation</h4>' + topicTabsHTML + navGroupsHTML + '</div>';
+            var btnsHTML = qs.map(function(q, i) {
+                var slug = (q.topic && q.topic.slug) || 'general';
+                return '<button type="button" class="aq-q-btn" data-qi="' + i + '" data-topic-slug="' + slug + '">' + (i+1) + '</button>';
+            }).join('');
+            navPanelHTML = '<div class="aq-nav-panel"><h4>Question Navigation</h4>'
+                + topicTabsHTML
+                + '<div class="aq-nav-grid">' + btnsHTML + '</div>'
+                + '</div>';
         }
 
         // ---- Build separate passage boxes (one per unique passage, hidden by default) ----
@@ -677,16 +676,15 @@ window.initAimcqQuiz = function(containerId, rawJSONData, customSettings) {
         if (this.S.shuffle_options && !this._restored) this.shuffleOptions();
         if (this.S.timer > 0) this.startTimer();
         this.setupEvents();
-        // Initialize the topic filter on quiz start. We always start with EXACTLY
-        // ONE topic visible in the navigation (there is no "All" view). The chosen
-        // topic is the one belonging to the current question — usually the first
-        // topic on a fresh start, but when restoring a saved session it matches
-        // wherever the user left off so the sidebar opens on the right group.
+        // Initialize the topic filter on quiz start — CBT-style.
+        // The default view is "All" (every question button visible), so the
+        // user can see the full picture before drilling into a section.
+        // jumpTo() will auto-switch to the matching section tab IF (and only
+        // if) the user later picks a specific section, so navigating through
+        // questions keeps the grid in sync without ever surprising the user.
         // No-op when the quiz has only one topic (topicTabBar doesn't exist).
         if (this.topicTabBar) {
-            var startIdx = this._restored ? this.cur : 0;
-            var startTopic = (this.qs[startIdx] && this.qs[startIdx].topic) ? this.qs[startIdx].topic.slug : null;
-            if (startTopic) this.filterByTopic(startTopic, true /* skipJump */);
+            this.filterByTopic('all');
         }
         this.renderControls();
         this.updateProg();
@@ -1013,20 +1011,19 @@ window.initAimcqQuiz = function(containerId, rawJSONData, customSettings) {
         this.topicBadge = this.wrap.querySelector('.aq-current-topic');
     };
 
-    // Filter the navigation sidebar to a single topic.
-    // - Sidebar shows ONLY that topic's question buttons (other topic groups hidden)
-    // - The corresponding tab pill becomes active
-    // - Jumps to the first question of that topic (unless skipJump is true)
+    // Filter the navigation grid to a single topic — CBT-style.
     //
-    // Switching tabs is purely a VIEW filter on the navigation sidebar — it does
-    // not touch this.states / this.selections / .aq-question DOM, so answered &
-    // marked-for-review states for questions in any topic persist across tab
-    // switches. (You can answer 5 GI questions, switch to GK, come back, and
-    // those 5 GI buttons are still green.)
+    //   • slug === 'all' → show every question button in the flat grid.
+    //   • slug === '<topicslug>' → show only buttons whose data-topic-slug
+    //     matches; hide the rest via `display: none`.
     //
-    // The `skipJump` flag is used by start() to set the initial filter without
-    // forcing a redundant jumpTo (since start() calls jumpTo separately).
-    ExamRunner.prototype.filterByTopic = function(slug, skipJump) {
+    // Switching tabs is purely a VIEW filter. It does NOT call jumpTo() —
+    // the user can still navigate independently with Save & Next or by
+    // tapping any visible question button. This matches the CBT (Pro)
+    // section-tab behavior. The `skipJump` argument is kept for backward
+    // compatibility with start()/navigate()/jumpTo() callers but it is now
+    // a no-op (filterByTopic never jumps).
+    ExamRunner.prototype.filterByTopic = function(slug, _skipJump) {
         if (!slug) return;
         this.activeTopicSlug = slug;
 
@@ -1037,37 +1034,17 @@ window.initAimcqQuiz = function(containerId, rawJSONData, customSettings) {
             });
         }
 
-        // Hide non-matching topic groups in the nav panel — only the selected
-        // topic's question buttons are visible. Their answered/review classes
-        // remain intact (handled by updateNav, indexed by global qi).
+        // Show/hide question buttons in the flat grid. CSS `display` is
+        // forced inline so it always wins against any stylesheet default.
+        // The button's answered/review/current state classes are preserved —
+        // updateNav() is indexed by global qi, not array position, so a
+        // hidden button still tracks state correctly and reappears with the
+        // right colour when its tab becomes active again.
         if (this.navPanel) {
-            this.navPanel.querySelectorAll('.aq-nav-topic-group').forEach(function(g) {
-                var match = (g.dataset.topicSlug === slug);
-                g.classList.toggle('aq-hidden', !match);
-                g.classList.remove('aq-dim'); // clear legacy state if any
+            this.navPanel.querySelectorAll('.aq-q-btn').forEach(function(b) {
+                var match = (slug === 'all' || b.dataset.topicSlug === slug);
+                b.style.display = match ? '' : 'none';
             });
-        }
-
-        // Jump to the last-visited question of the selected topic — or the
-        // first question of that topic if the user has never visited it before
-        // (or if the caller passes skipJump=true and wants to handle navigation
-        // separately, e.g. start() during session restore, or navigate() when
-        // crossing topic boundaries backwards).
-        if (skipJump) return;
-        var remembered = this._topicCursors[slug];
-        // Validate the remembered index still belongs to this topic (defensive
-        // check in case the question list changed between sessions).
-        if (typeof remembered === 'number'
-                && remembered >= 0 && remembered < this.qs.length
-                && this.qs[remembered].topic
-                && this.qs[remembered].topic.slug === slug) {
-            this.jumpTo(remembered);
-            return;
-        }
-        // Fallback: first question of this topic.
-        for (var i = 0; i < this.qs.length; i++) {
-            var qt = this.qs[i].topic;
-            if (qt && qt.slug === slug) { this.jumpTo(i); break; }
         }
     };
 
@@ -1249,55 +1226,19 @@ window.initAimcqQuiz = function(containerId, rawJSONData, customSettings) {
     //     * Submit never appears until the absolute last question (`cur === total-1`)
     //     * The user is never stuck at an artificial boundary
     //     * Cross-topic navigation feels seamless from the question pane
+    // Plain linear next/prev navigation — CBT-style.
+    //
+    // The section filter is now purely a VIEW concern, so Save & Next /
+    // navigate(+1) always advances to the next question by global index,
+    // regardless of which section tab is active. If that crosses a section
+    // boundary, jumpTo() auto-switches the active tab to match (when the
+    // filter is a specific section). When "All" is active, nothing flips
+    // — the grid keeps showing every question.
     ExamRunner.prototype.navigate = function(d) {
-        var filter = this.activeTopicSlug;
         var step = d > 0 ? 1 : -1;
-
-        // No filter (single-topic quiz) → plain linear navigation.
-        if (!filter) {
-            var target = this.cur + step;
-            if (target < 0 || target >= this.total) return;
-            this.jumpTo(target);
-            return;
-        }
-
-        // Filter active — look for the next/prev question within the same topic first.
-        var i = this.cur + step;
-        while (i >= 0 && i < this.total) {
-            var t = this.qs[i].topic;
-            if (t && t.slug === filter) { this.jumpTo(i); return; }
-            i += step;
-        }
-
-        // Reached the boundary of the filtered topic in this direction.
-        // Cross into the adjacent topic: find the first (or last) question of
-        // whichever topic comes next, then switch the active filter to it so
-        // the tab + nav grid update in sync. If there is no adjacent topic in
-        // this direction, do nothing (user must hit Submit or scroll the tabs).
-        var crossSlug = null;
-        var crossIdx = -1;
-        var j = (step > 0) ? 0 : this.total - 1;
-        var end = (step > 0) ? this.total : -1;
-        // Re-scan from scratch in the direction of travel to find the first
-        // question whose topic differs from the active filter AND appears
-        // AFTER (or BEFORE) this.cur.
-        for (j = this.cur + step; j !== end; j += step) {
-            var tj = this.qs[j].topic;
-            var sj = tj ? tj.slug : 'general';
-            if (sj !== filter) { crossSlug = sj; crossIdx = j; break; }
-        }
-        if (crossIdx === -1) return; // no adjacent topic — stay put
-        this.filterByTopic(crossSlug);
-        // filterByTopic jumps to the FIRST question of crossSlug. When moving
-        // backward, we actually want the LAST question of the previous topic
-        // (the one adjacent to our starting point), so correct that here.
-        if (step < 0) {
-            // Find the last question index belonging to crossSlug.
-            for (var k = this.total - 1; k >= 0; k--) {
-                var tk = this.qs[k].topic;
-                if (tk && tk.slug === crossSlug) { this.jumpTo(k); break; }
-            }
-        }
+        var target = this.cur + step;
+        if (target < 0 || target >= this.total) return;
+        this.jumpTo(target);
     };
 
     ExamRunner.prototype.jumpTo = function(idx) {
@@ -1314,20 +1255,21 @@ window.initAimcqQuiz = function(containerId, rawJSONData, customSettings) {
         });
 
         // ---- Sync the active topic-tab (if the tab bar exists) ----
-        // Reflects the topic of the current question. With the "All" view removed,
-        // the active filter and current question's topic are always in sync via
-        // navigate() (cross-topic boundaries auto-switch the filter), so we just
-        // follow the current question. This also self-heals if external code
-        // does a raw jumpTo() that crosses a topic boundary.
+        // CBT-parity behaviour:
+        //   • If the active filter is "all", do NOT switch tabs — keep
+        //     showing every question button in the grid.
+        //   • Otherwise, if the current question's section differs from
+        //     the active filter, switch the filter to the current
+        //     question's section so the grid updates in sync.
         var curTopic = this.qs[this.cur].topic || null;
         var curTopicSlug = curTopic ? curTopic.slug : 'general';
         if (this.topicTabBar) {
-            // If the current question's topic differs from the active filter
-            // (e.g. external jumpTo across a boundary), update the filter so
-            // the sidebar tab + nav group also flip to the right topic.
-            if (this.activeTopicSlug !== curTopicSlug) {
-                this.filterByTopic(curTopicSlug, true /* skipJump */);
+            if (this.activeTopicSlug && this.activeTopicSlug !== 'all'
+                    && this.activeTopicSlug !== curTopicSlug) {
+                this.filterByTopic(curTopicSlug);
             }
+            // Keep the active tab pill visible by horizontally scrolling
+            // the tab bar if it has overflowed off-screen.
             this.topicTabBar.querySelectorAll('.aq-topic-tab').forEach(function(t) {
                 if (t.classList.contains('active')) {
                     var bar = t.parentElement;
