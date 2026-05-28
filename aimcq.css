@@ -203,11 +203,15 @@
     width: 300px;
     height: 100%;
     z-index: 30; /* only needs to beat siblings inside .aq-exam */
-    overflow-y: auto;
     border-radius: 0;
     box-shadow: 2px 0 20px rgba(0,0,0,0.15);
     transition: left 0.32s cubic-bezier(.4,0,.2,1);
-    display: block;
+    /* Panel itself does NOT scroll. Heading + topic tabs stay pinned at
+       the top; only the question-number grid scrolls. Mirrors the CBT
+       (Pro) interface so behaviour is consistent across both modes. */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 #aimcq-root-scope .aq-nav-panel.drawer-open {
     left: 0;
@@ -220,12 +224,33 @@
     padding-bottom: 1rem;
     margin-bottom: 1.5rem;
     font-family: var(--aq-font);
+    flex-shrink: 0;
 }
 #aimcq-root-scope .aq-nav-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
     gap: 0.6rem;
+    /* Only this section scrolls — the question-number buttons.
+       flex:1 takes all remaining height in the nav panel; min-height:0
+       lets the grid actually shrink inside the flex column (otherwise
+       min-content prevents shrinking and would push the grid off-screen).
+       padding-right leaves room for the scrollbar so buttons don't get
+       clipped. */
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    align-content: start;
+    padding-right: 6px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 transparent;
 }
+#aimcq-root-scope .aq-nav-grid::-webkit-scrollbar { width: 6px; }
+#aimcq-root-scope .aq-nav-grid::-webkit-scrollbar-track { background: transparent; }
+#aimcq-root-scope .aq-nav-grid::-webkit-scrollbar-thumb {
+    background: #94a3b8; border-radius: 3px;
+}
+#aimcq-root-scope .aq-nav-grid::-webkit-scrollbar-thumb:hover { background: #64748b; }
 #aimcq-root-scope .aq-q-btn {
     display: flex;
     justify-content: center;
@@ -296,6 +321,9 @@
     padding: 0 0 0.55rem 0;
     margin: 0 0 1rem 0;
     -ms-overflow-style: none;
+    /* Pinned at the top of the nav panel above the scrollable grid —
+       never shrinks, always visible. */
+    flex-shrink: 0;
 }
 #aimcq-root-scope .aq-topic-tabs::-webkit-scrollbar { height: 4px; }
 #aimcq-root-scope .aq-topic-tabs::-webkit-scrollbar-track { background: transparent; }
